@@ -33,13 +33,11 @@ proguard/
 *.pydevproject
 .metadata
 .gradle
-bin/
 tmp/
 *.tmp
 *.bak
 *.swp
 *~.nib
-local.properties
 .settings/
 .loadpath
 
@@ -71,8 +69,6 @@ local.properties
 .texlipse
 
 #####=== Java ===#####
-
-*.class
 
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
@@ -144,7 +140,6 @@ crashlytics-build.properties
 
 #####=== NetBeans ===#####
 nbproject/private/
-build/
 nbbuild/
 dist/
 nbdist/
@@ -185,7 +180,6 @@ Temporary Items
 *.un~
 Session.vim
 .netrwhist
-*~
 
 #####=== Windows ===#####
 # Windows image file caches
@@ -209,22 +203,15 @@ $RECYCLE.BIN/
 
 #####=== Gradle ===#####
 
-.gradle
-build/
-
 # Ignore Gradle GUI config
 gradle-app.setting
 
 # Avoid ignoring Gradle wrapper jar file (.jar files are usually ignored)
 !gradle-wrapper.jar
 
-#####=== Github push ===#####
-app/.github-ssh.sh
-app/id_rsa_zumba
-app/keys.json
-app/.zumba.keystore
-app/zumba.keystore
-app/keystore.properties
-app/id_rsa_zumba
-app/.github-ssh.sh
-app/.externalNativeBuild
+
+.idea
+**/*.iml
+build
+.externalNativeBuild
+libwebp
