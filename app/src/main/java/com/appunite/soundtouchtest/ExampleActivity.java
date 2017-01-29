@@ -14,11 +14,16 @@
 
 package com.appunite.soundtouchtest;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Environment;
+import android.support.v4.app.ActivityCompat;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -29,9 +34,11 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 
+import com.appunite.soundtouchtest.soundtouch.BPMDetect;
 import com.appunite.soundtouchtest.soundtouch.SoundTouch;
 
 import java.io.File;
+import java.io.IOException;
 
 public class ExampleActivity extends Activity implements OnClickListener 
 {
@@ -43,6 +50,8 @@ public class ExampleActivity extends Activity implements OnClickListener
 	CheckBox checkBoxPlay = null;
 	
 	StringBuilder consoleText = new StringBuilder();
+
+	MediaPlayer mediaPlayer = new MediaPlayer();
 
 	
 	/// Called when the activity is created
@@ -70,8 +79,27 @@ public class ExampleActivity extends Activity implements OnClickListener
 
 		// Check soundtouch library presence & version
 		checkLibVersion();
+
+		final String inputPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/test.wav";
+		final String outputPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/testOutput.wav";
+
+		editSourceFile.setText(inputPath);
+		editOutputFile.setText(outputPath);
+
+		ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
+
+		//final float bpm = getBpm(outputPath);
+		new BpmTask().execute(outputPath);
 	}
-	
+
+	public float getBpm(final String inputFilePath) {
+		AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
+		String sampleRate = am.getParameters(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE);
+		if (sampleRate == null || sampleRate.equals("")) sampleRate = "44100";
+
+		final BPMDetect bpmDetect = new BPMDetect(2, Integer.parseInt(sampleRate));
+		return bpmDetect.getBPM(inputFilePath);
+	}
 	
 		
 	/// Function to append status text onto "console box" on the Activity
@@ -124,11 +152,31 @@ public class ExampleActivity extends Activity implements OnClickListener
 	/// Play audio file
 	protected void playWavFile(String fileName)
 	{
-		File file2play = new File(fileName);
-		Intent i = new Intent();
-		i.setAction(Intent.ACTION_VIEW);
-		i.setDataAndType(Uri.fromFile(file2play), "audio/wav");
-		startActivity(i);		
+
+		try {
+			mediaPlayer.reset();
+			mediaPlayer.setDataSource(this, Uri.parse(fileName));
+			mediaPlayer.prepare();
+			mediaPlayer.start();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+
+	protected class BpmTask extends AsyncTask<String, Integer, Float>
+	{
+
+		@Override
+		protected Float doInBackground(final String... params) {
+			return getBpm(params[0]);
+		}
+
+		@Override
+		protected void onPostExecute(final Float bpm) {
+			super.onPostExecute(bpm);
+			Toast.makeText(ExampleActivity.this, "Bpm is: " + bpm, Toast.LENGTH_LONG).show();
+		}
 	}
 	
 				
@@ -221,5 +269,11 @@ public class ExampleActivity extends Activity implements OnClickListener
 			exp.printStackTrace();
 		}
 	
+	}
+
+	@Override
+	protected void onDestroy() {
+		super.onDestroy();
+		mediaPlayer.release();
 	}
 }

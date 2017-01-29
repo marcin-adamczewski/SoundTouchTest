@@ -18,6 +18,7 @@
 #include <string>
 #include <SoundTouch.h>
 #include <WavFile.h>
+#include <BPMDetect.h>
 
 using namespace std;
 
@@ -155,6 +156,50 @@ static void _processFile(SoundTouch *pSoundTouch, const char *inFileName, const 
     } while (nSamples != 0);
 }
 
+// Detect BPM rate of inFile and adjust tempo setting accordingly if necessary
+static float detectBPM(WavInFile *inFile) {
+    float bpmValue;
+    int nChannels;
+    BPMDetect bpm(inFile->getNumChannels(), inFile->getSampleRate());
+    SAMPLETYPE sampleBuffer[BUFF_SIZE];
+
+    // detect bpm rate
+    fprintf(stderr, "Detecting BPM rate...");
+    fflush(stderr);
+
+    nChannels = (int) inFile->getNumChannels();
+    assert(BUFF_SIZE % nChannels == 0);
+
+    // Process the 'inFile' in small blocks, repeat until whole file has
+    // been processed
+    while (inFile->eof() == 0) {
+        int num, samples;
+
+        // Read sample data from input file
+        num = inFile->read(sampleBuffer, BUFF_SIZE);
+
+        // Enter the new samples to the bpm analyzer class
+        samples = num / nChannels;
+        bpm.inputSamples(sampleBuffer, samples);
+    }
+
+    // Now the whole song data has been analyzed. Read the resulting bpm.
+    bpmValue = bpm.getBpm();
+    fprintf(stderr, "Done!\n");
+
+    // rewind the file after bpm detection
+    inFile->rewind();
+
+    if (bpmValue > 0) {
+        fprintf(stderr, "Detected BPM rate %.1f\n\n", bpmValue);
+    }
+    else {
+        fprintf(stderr, "Couldn't detect BPM rate.\n\n");
+    }
+
+    return bpmValue;
+}
+
 
 
 extern "C" DLL_PUBLIC jstring Java_com_appunite_soundtouchtest_soundtouch_SoundTouch_getVersionString(JNIEnv *env, jobject thiz)
@@ -181,13 +226,22 @@ extern "C" DLL_PUBLIC jstring Java_com_appunite_soundtouchtest_soundtouch_SoundT
     return env->NewStringUTF(verStr);
 }
 
+extern "C" DLL_PUBLIC jlong Java_com_appunite_soundtouchtest_soundtouch_BPMDetect_newInstance(JNIEnv *env, jobject thiz, jint numChannels, jint sampleRate)
+{
+    return (jlong)(new BPMDetect(numChannels, sampleRate));
+}
+
+extern "C" DLL_PUBLIC void Java_com_appunite_soundtouchtest_soundtouch_BPMDetect_deleteInstance(JNIEnv *env, jobject thiz, jlong handle)
+{
+    BPMDetect *ptr = (BPMDetect*)handle;
+    delete ptr;
+}
 
 
 extern "C" DLL_PUBLIC jlong Java_com_appunite_soundtouchtest_soundtouch_SoundTouch_newInstance(JNIEnv *env, jobject thiz)
 {
 	return (jlong)(new SoundTouch());
 }
-
 
 extern "C" DLL_PUBLIC void Java_com_appunite_soundtouchtest_soundtouch_SoundTouch_deleteInstance(JNIEnv *env, jobject thiz, jlong handle)
 {
@@ -223,6 +277,40 @@ extern "C" DLL_PUBLIC jstring Java_com_appunite_soundtouchtest_soundtouch_SoundT
 	_errMsg.clear();
 
 	return result;
+}
+
+extern "C" DLL_PUBLIC float Java_com_appunite_soundtouchtest_soundtouch_BPMDetect_getBPM(JNIEnv *env, jobject thiz, jlong handle, jstring jinputFile)
+{
+    const char *inputFile = env->GetStringUTFChars(jinputFile, 0);
+    WavInFile *pWavInFile = new WavInFile(inputFile);
+    return detectBPM(pWavInFile);
+/*    BPMDetect *ptr = (BPMDetect*)handle;
+
+    const char *inputFile = env->GetStringUTFChars(jinputFile, 0);
+
+    LOGV("JNI process file to check bpm %s", inputFile);
+
+    /// gomp_tls storage bug workaround - see comments in _init_threading() function!
+    if (_init_threading(true)) return -1;
+
+    float bpm = 0;
+    try
+    {
+        bpm = _getBPM(ptr, inputFile);
+    }
+    catch (const runtime_error &e)
+    {
+        const char *err = e.what();
+        // An exception occurred during processing, return the error message
+        LOGV("JNI exception in BPM::getBPM: %s", err);
+        _setErrmsg(err);
+        return -1;
+    }
+
+
+    env->ReleaseStringUTFChars(jinputFile, inputFile);
+
+    return bpm;*/
 }
 
 
